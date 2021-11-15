@@ -1,0 +1,104 @@
+blueprint:
+  name: IKEA Tradfri on/off switch (deconz)
+  description: "Control the IKEA Tradfri on/off switch incl. dimming"
+  domain: automation
+  input:
+    remote:
+      name: Remote
+      description: The IKEA Tradfri ON/OFF Remote
+      selector:
+        device:
+          integration: deconz
+          manufacturer: IKEA of Sweden
+          model: TRADFRI on/off switch
+    light:
+      name: Light
+      description: The lights to controll
+      selector:
+        target:
+          entity:
+            domain: light
+    transition_speed:
+      name: Transition Speed
+      description: Duration it takes to get to next state.
+      default: 1
+      selector:
+        number:
+          unit_of_measurement: seconds
+          min: 0
+          max: 300
+    brightening_speed:
+      name: Brightning Speed
+      description: Steps for increasing the brightness of the light
+      default: 10
+      selector:
+        number:
+          min: 0
+          max: 100
+    dimming_speed:
+      name: Dimming Speed
+      description: Steps for decrease the brightness of the light
+      default: -10
+      selector:
+        number:
+          min: -100
+          max: 0
+  source_url: https://github.com/c0un7-z3r0/ha-blueprints
+mode: restart
+trigger:
+  - platform: event
+    event_type: deconz_event
+    event_data:
+      device_id: !input "remote"
+action:
+  - variables:
+      event: "{{ trigger.event.data.event }}"
+  - choose:
+      - conditions:
+          - "{{ event == 1001 }}"
+        sequence:
+          repeat:
+            while:
+              - condition: template
+                value_template: "{{ repeat.index < 10 }}"
+            sequence:
+              - service: light.turn_on
+                target: !input "light"
+                data:
+                  transition: !input transition_speed
+                  brightness_step_pct: !input brightening_speed
+              - delay: 1
+      - conditions:
+          - "{{ event == 1002 }}"
+        sequence:
+          - service: light.turn_on
+            target: !input "light"
+      - conditions:
+          - "{{ event == 1003 }}"
+        sequence:
+          - service: light.turn_on
+            target: !input "light"
+      - conditions:
+          - "{{ event == 2001 }}"
+        sequence:
+          repeat:
+            while:
+              - condition: template
+                value_template: "{{ repeat.index < 10 }}"
+            sequence:
+              - service: light.turn_on
+                target: !input "light"
+                data:
+                  transition: !input transition_speed
+                  brightness_step_pct: !input dimming_speed
+              - delay: 1
+      - conditions:
+          - "{{ event == 2002 }}"
+        sequence:
+          - service: light.turn_off
+            target: !input "light"
+      - conditions:
+          - "{{ event == 2003 }}"
+        sequence:
+          - service: light.turn_off
+            target: !input "light"
